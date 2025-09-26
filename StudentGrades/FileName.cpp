@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+// create Student and BST Node
 struct student {
     char studentNumber[20];
     char name[50];
@@ -14,6 +15,7 @@ struct BSTNode {
     struct BSTNode* right;
 };
 
+
 struct BSTNode* root = NULL;
 int studentCount = 0;
 
@@ -21,13 +23,17 @@ int studentCount = 0;
 void displayMenu();
 void addStudent();
 void displayInOrderByGrade(struct BSTNode* current);
-struct BSTNode* insertByGrade(struct BSTNode* node, struct student* element);
+
+// we insert grades into the nodes, thats how it's sorted
+struct BSTNode* insertByGrade(struct BSTNode* node, struct student* element); 
+
 struct BSTNode* searchByNumber(struct BSTNode* node, char* number);
 struct BSTNode* findMin(struct BSTNode* node);
 struct BSTNode* findMax(struct BSTNode* node);
 struct BSTNode* deleteNode(struct BSTNode* node, char* number);
 void removeStudent();
 void displayStatistics();
+
 void calculateAverage(struct BSTNode* node, float* total, int* count);
 void removeMinGrade();
 void removeMaxGrade();
@@ -94,6 +100,7 @@ int main() {
 }
 
 // === UTILITY FUNCTIONS ===
+// note: consume the new line and clear it, this is like java's "scan.nextline();" except we need to create it
 void clearInputBuffer() {
     int c;
     while ((c = getchar()) != '\n' && c != EOF);
@@ -112,7 +119,7 @@ void displayMenu() {
     printf("0. Exit\n");
 }
 
-// === ADD STUDENT ==
+// === 1. ADD STUDENT ==
 void addStudent() {
     struct student* newStudent = (struct student*)malloc(sizeof(struct student));
     if (!newStudent) {
@@ -122,20 +129,22 @@ void addStudent() {
 
     printf("\n=== ADD NEW STUDENT ===\n");
     printf("Enter student number: ");
-    scanf_s("%19s", newStudent->studentNumber, (unsigned)_countof(newStudent->studentNumber));
+    scanf_s("%10s", newStudent->studentNumber, (unsigned)_countof(newStudent->studentNumber));
     clearInputBuffer();
 
-    // check duplicates
+    // check duplicates for student number
     if (searchByNumber(root, newStudent->studentNumber)) {
         printf("Error: Student number %s already exists!\n", newStudent->studentNumber);
         free(newStudent);
         return;
     }
 
+    // input name
     printf("Enter student name: ");
     scanf_s("%49s", newStudent->name, (unsigned)_countof(newStudent->name));
     clearInputBuffer();
 
+    //input valid grade
     do {
         printf("Enter student grade (0-100): ");
         if (scanf_s("%f", &newStudent->grade) != 1) {
@@ -149,17 +158,20 @@ void addStudent() {
         }
     } while (newStudent->grade < 0 || newStudent->grade > 100);
 
+    //insert grade into node 
     root = insertByGrade(root, newStudent);
     studentCount++;
 
-    printf("Student added successfully! %s | %s | %.2f\n",
+    printf("Student added successfully! Number: %5s | Name: %5s | Grade: %.2f\n",
         newStudent->studentNumber, newStudent->name, newStudent->grade);
 }
 
-// === INSERT BY GRADE ===
+// === INSERT BY GRADE (this is very important, the nodes are arranged by GRADES) ===
+// - - - - - - - - - - - -
 struct BSTNode* insertByGrade(struct BSTNode* node, struct student* element) {
     if (!node) {
         struct BSTNode* newNode = (struct BSTNode*)malloc(sizeof(struct BSTNode));
+    }
         if (!newNode) {
             printf("Memory allocation failed!\n");
             return NULL;
@@ -168,16 +180,19 @@ struct BSTNode* insertByGrade(struct BSTNode* node, struct student* element) {
         newNode->left = newNode->right = NULL;
         return newNode;
     }
+    
     if (element->grade > node->element->grade) {
-        node->left = insertByGrade(node->left, element);
+        node->left = insertByGrade(node->right, element); //bigger goes right
     }
     else {
-        node->right = insertByGrade(node->right, element);
+        node->right = insertByGrade(node->left, element); //smaller goes left
     }
     return node;
 }
+// - - - - - - - - - - - -
 
-// === DISPLAY IN ORDER ===
+
+// === 2. DISPLAY IN ORDER ===
 void displayInOrderByGrade(struct BSTNode* current) {
     if (!current) return;
     displayInOrderByGrade(current->left);
@@ -188,41 +203,47 @@ void displayInOrderByGrade(struct BSTNode* current) {
     displayInOrderByGrade(current->right);
 }
 
-// === SEARCH BY NUMBER ===
+
+// === 3. SEARCH BY STUDENT NUMBER ===
 struct BSTNode* searchByNumber(struct BSTNode* node, char* number) {
     if (!node) return NULL;
 
+    // 1. find studuent number
     int cmp = strcmp(node->element->studentNumber, number);
-    if (cmp == 0) return node;
+    if (cmp == 0) return node; 
 
-    // Search both subtrees since BST is organized by grade, not by number
+    // 2. search both subtrees since BST is organized by grade, not by number
     struct BSTNode* found = searchByNumber(node->left, number);
     if (found) return found;
+
+    // 3. return result
     return searchByNumber(node->right, number);
 }
 
 // === MIN/MAX ===
 struct BSTNode* findMin(struct BSTNode* node) {
     if (!node) return NULL;
-    while (node->right) node = node->right; // right = lower grade
+    while (node->left) node = node->left; // left = lower grade
     return node;
 }
 
 struct BSTNode* findMax(struct BSTNode* node) {
     if (!node) return NULL;
-    while (node->left) node = node->left; // left = higher grade
+    while (node->right) node = node->right; // right = higher grade
     return node;
 }
 
-// === DELETE NODE ===
+
+// === 4. DELETE NODE / STUDENT ===
+// - - - - - - - - - -
 struct BSTNode* deleteNode(struct BSTNode* node, char* number) {
     if (!node) return NULL;
 
-    // Search for the node
+    // search entire tree for the node
     struct BSTNode* found = searchByNumber(node, number);
     if (!found) return node; // Node not found
 
-    // If current node is the one to delete
+    // compare current node to user input to see if its the one to delete
     if (strcmp(node->element->studentNumber, number) == 0) {
         if (!node->left) {
             struct BSTNode* temp = node->right;
@@ -239,13 +260,13 @@ struct BSTNode* deleteNode(struct BSTNode* node, char* number) {
             return temp;
         }
 
-        // Node with two children: get the inorder successor (smallest in right subtree)
-        struct BSTNode* temp = findMin(node->right);
-        // Copy the data
+        // Node with two children: get the inorder successor (smallest in left subtree)
+        struct BSTNode* temp = findMin(node->left);
+        // COPY the data
         struct student* tempElement = node->element;
         node->element = temp->element;
         temp->element = tempElement;
-        // Delete the inorder successor
+        // DELETE the inorder successor
         node->right = deleteNode(node->right, temp->element->studentNumber);
     }
     else {
@@ -255,6 +276,9 @@ struct BSTNode* deleteNode(struct BSTNode* node, char* number) {
     }
     return node;
 }
+// - - - - - - - - - -
+
+
 
 // === REMOVE STUDENT ===
 void removeStudent() {
@@ -272,11 +296,13 @@ void removeStudent() {
         printf("Student %s not found!\n", number);
         return;
     }
+    //call deleteNode to delete
     root = deleteNode(root, number);
     printf("Student %s removed successfully!\n", number);
 }
 
 // === STATISTICS ===
+// calculate average
 void calculateAverage(struct BSTNode* node, float* total, int* count) {
     if (!node) return;
     *total += node->element->grade;
@@ -285,28 +311,32 @@ void calculateAverage(struct BSTNode* node, float* total, int* count) {
     calculateAverage(node->right, total, count);
 }
 
+// 2. display all students
 void displayStatistics() {
     if (!root) {
         printf("No students!\n");
         return;
     }
+    
     printf("\n=== STATISTICS ===\n");
     printf("Total students: %d\n", studentCount);
 
     struct BSTNode* minNode = findMin(root);
     struct BSTNode* maxNode = findMax(root);
 
+    //display MIN and MAX
     if (minNode) {
-        printf("Lowest grade: %.2f | %s | %s\n",
-            minNode->element->grade,
-            minNode->element->studentNumber,
-            minNode->element->name);
+    printf("Lowest grade: \nNumber: %s | Name: %s | Grade: %.2f\n",
+        minNode->element->studentNumber,
+        minNode->element->name,
+        minNode->element->grade);
     }
+    
     if (maxNode) {
-        printf("Highest grade: %.2f | %s | %s\n",
-            maxNode->element->grade,
-            maxNode->element->studentNumber,
-            maxNode->element->name);
+    printf("Highest grade: \nNumber: %s | Name: %s | Grade: %.2f\n",
+        maxNode->element->studentNumber,
+        maxNode->element->name,
+        maxNode->element->grade);
     }
 
     float total = 0;
@@ -317,26 +347,30 @@ void displayStatistics() {
     }
 }
 
-// === REMOVE MIN/MAX ===
+// === 6./7. REMOVE MIN/MAX ===
+// remove MIN grade
 void removeMinGrade() {
     struct BSTNode* minNode = findMin(root);
     if (!minNode) {
         printf("No students!\n");
         return;
     }
+    // display student removed
     printf("Removing student with lowest grade: \nNumber: %s | Name: %s | Grade: %.2f\n",
         minNode->element->studentNumber,
         minNode->element->name,
         minNode->element->grade);
     root = deleteNode(root, minNode->element->studentNumber);
 }
-
+    
+// remove MAX grade
 void removeMaxGrade() {
     struct BSTNode* maxNode = findMax(root);
     if (!maxNode) {
         printf("No students!\n");
         return;
     }
+    // display student removed
     printf("Removing student with highest grade: \nNumber: %s | Name: %s | Grade: %.2f\n",
         maxNode->element->studentNumber,
         maxNode->element->name,
@@ -345,6 +379,7 @@ void removeMaxGrade() {
 }
 
 // === FREE TREE ===
+// cleans up all dynamically allocated memoery for BST to prevent memory leaks
 void freeTree(struct BSTNode* node) {
     if (!node) return;
     freeTree(node->left);
